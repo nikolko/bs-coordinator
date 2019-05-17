@@ -118,7 +118,13 @@ public class CoordinatorControllerImpl implements Coordinator {
 
         data.getShooted();
 
-        Optional<PlayerEntity> o = repository.findByUiId(id);
+        Optional<PlayerEntity> o;
+        if (data.getShooted() != null &&  data.getShooted()) {
+            o = repository.findByUiIdNot(id);
+        } else {
+            o = repository.findByUiId(id);
+        }
+
 
         if (o.isPresent()) {
             Player p = getPlayer(o.get().getAddr());
@@ -128,7 +134,7 @@ public class CoordinatorControllerImpl implements Coordinator {
                 @Override
                 public void run() {
                     try {
-                        Thread.sleep(1500);
+                        Thread.sleep(2000);
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
