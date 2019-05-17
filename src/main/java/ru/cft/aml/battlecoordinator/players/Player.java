@@ -14,7 +14,7 @@ import java.util.List;
 public interface Player {
 
 
-    @PostMapping("/init")
+    @PostMapping(value = "/init", consumes = "application/json")
     ActionResult initPlayer(@RequestBody List<CellModel> cells);
 
     @PostMapping("/run")

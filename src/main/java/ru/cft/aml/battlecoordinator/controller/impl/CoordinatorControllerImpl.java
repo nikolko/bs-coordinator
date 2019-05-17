@@ -8,7 +8,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cloud.openfeign.support.SpringMvcContract;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 import ru.cft.aml.battlecoordinator.controller.Coordinator;
 import ru.cft.aml.battlecoordinator.data.PlayerEntity;
 import ru.cft.aml.battlecoordinator.data.PlayerRepository;
@@ -17,6 +20,7 @@ import ru.cft.aml.battlecoordinator.players.Player;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("api")
@@ -63,6 +67,16 @@ public class CoordinatorControllerImpl implements Coordinator {
     }
 
 
+    private Player getPlayer(String url) {
+        return Feign.builder()
+                .logger(new feign.Logger.ErrorLogger())
+                .logLevel(feign.Logger.Level.FULL)
+                .contract(new SpringMvcContract())
+                .encoder(new JacksonEncoder())
+                .decoder(new JacksonDecoder())
+                .target(Player.class, url);
+    }
+
     private ActionResult getSuccessResult() {
         ActionResult r = new ActionResult();
         r.setSuccess(true);
@@ -74,13 +88,7 @@ public class CoordinatorControllerImpl implements Coordinator {
     @CrossOrigin("*")
     public ActionResult start(InitialRequest request) {
         repository.findAll().forEach(e -> {
-            Player p = Feign.builder()
-                    .logger(new feign.Logger.ErrorLogger())
-                    .logLevel(feign.Logger.Level.FULL)
-                    .contract(new SpringMvcContract())
-                    .encoder(new JacksonEncoder())
-                    .decoder(new JacksonDecoder())
-                    .target(Player.class, e.getAddr());
+            Player p = getPlayer(e.getAddr());
             if (e.getUiId() == 0) {
                 firstShooter = p;
                 p.initPlayer(request.getZeroList());
@@ -98,6 +106,39 @@ public class CoordinatorControllerImpl implements Coordinator {
     @PostMapping("report")
     @CrossOrigin("*")
     public ActionResult damageReport(DamageData data, Integer id) {
+        WebSocketUiMessage m = new WebSocketUiMessage();
+
+        m.setType("update_cell");
+        m.setX(data.getX());
+        m.setY(data.getY());
+        m.setPlaygroundID(id);
+        System.out.println("Report!");
+        template.setDefaultDestination("/events");
+        template.convertAndSend(m);
+
+        data.getShooted();
+
+        Optional<PlayerEntity> o = repository.findByUiId(id);
+
+        if (o.isPresent()) {
+            Player p = getPlayer(o.get().getAddr());
+
+
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        Thread.sleep(1500);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                    p.run();
+                }
+            }).start();
+
+
+        }
+
         return getSuccessResult();
     }
 
@@ -111,6 +152,7 @@ public class CoordinatorControllerImpl implements Coordinator {
     @Override
     @PostMapping("penalty")
     public ActionResult setPenalty(PenaltyData data, Integer id) {
+        repository.findByUiId(id);
         return getSuccessResult();
     }
 }
