@@ -128,20 +128,15 @@ public class CoordinatorControllerImpl implements Coordinator {
 
         if (o.isPresent()) {
             Player p = getPlayer(o.get().getAddr());
-
-
-            new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        Thread.sleep(2000);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
+            new Thread(() -> {
+                try {
+                    Thread.sleep(2000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                } finally {
                     p.run();
                 }
             }).start();
-
 
         }
 
